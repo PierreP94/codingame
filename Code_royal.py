@@ -6,11 +6,12 @@ import math
 site_dict = {}
 site_pos = {}
 barracks = {}
+tower = {}
 knight = {}
 archer = {}
 giant = {}
 mine = {}
-e_t_build = 0
+e_t_build = {}
 
 
 
@@ -63,44 +64,45 @@ class Giant(Unit) :
         Unit.__init__(self, x, y, owner, health)
         Giant.count_g += 1
 #avoiding turrets       
-def out_range(pos_x, pos_y):
+def out_range(site):
     out = True
-    for site_id in site_dict :
+    for site_id in e_t_build:
         if site_dict[site_id].owner == 1 and site_dict[site_id].structure_type == 1 :
-            x_site = site_dict[site_id].x
-            y_site = site_dict[site_id].y
-            x_diff = abs(x_site-queen.x)
-            y_diff = abs(y_site-queen.y)
-            site_dict[site_id].distance = math.sqrt(x_diff**2+y_diff**2)
-            if site_dict[site_id].distance < site_dict[site_id].param_2 : out = False
+            x_t_site = site_dict[site_id].x
+            y_t_site = site_dict[site_id].y
+            destination_x = site_dict[site].x
+            destination_y = site_dict[site].y
+            r_site = site_dict[site_id].radius
+            x_diff = (x_t_site - destination_x)**2
+            y_diff = (y_t_site - destination_y)**2
+            distance_t = math.sqrt(x_diff+y_diff) - r_site
+            if distance_t < site_dict[site_id].param_2 : out = False
+        else : del e_t_build[site_id]
     return out
             
 
 def search():
-    distance_min = 999999
-    to_go = 0
-    while to_go == 0 :
-        for site_id in site_dict :
-            if site_dict[site_id].owner != 1 and site_dict[site_id].structure_type == -1 or site_dict[site_id].owner == 1 and site_dict[site_id].structure_type == 0 :
-                x_site = site_dict[site_id].x
-                y_site = site_dict[site_id].y
-                r_site = site_dict[site_id].radius
-                x_diff = (x_site-queen.x)**2
-                y_diff = (y_site-queen.y)**2
-                site_dict[site_id].distance = math.sqrt(x_diff+y_diff)-r_site
-                out = out_range(x_site, y_site)
-                if distance_min > site_dict[site_id].distance and out :
-                    distance_min = site_dict[site_id].distance 
-                    to_go = site_id
-    return to_go
+    distance_min = 0
+    for site in site_dict :
+        if site_dict[site].owner == -1 or (site_dict[site].structure_type == 0 and site_dict[site].owner == 1) :
+            x_site = site_dict[site].x
+            y_site = site_dict[site].y
+            r_site = site_dict[site].radius
+            x_diff = (queen.x - x_site)**2
+            y_diff = (queen.y - y_site)**2
+            distance = math.sqrt(x_diff+y_diff) - r_site
+            out = out_range(site)
+            if distance_min == 0 or(distance_min > distance and out) :
+                distance_min = distance 
+                destination = site
+    return destination
     # Move of the queen
 
-def queen_move(closest_place, touched_site):
+def queen_move(closest_place):
     cmd = "" 
     if touched_site < 0 or site_dict[touched_site].structure_type >= 0 :
         cmd = "MOVE" + " " + str(site_dict[closest_place].x) + " " + str(site_dict[closest_place].y)
-    elif site_dict[touched_site].mine_lvl >= 3:
-        cmd = "MOVE" + " " + str(site_dict[closest_place].x) + " " + str(site_dict[closest_place].y)
+
     else :
         building = choose_building(touched_site)
         cmd = "BUILD" + " " + str(touched_site) + " " + str(building)
@@ -121,21 +123,8 @@ def training(gold):
             if site_dict[site].param_2 == 0 and gold_c >= 80 :
                 cmd += " "  + str(site)
                 gold_c -= 80
-            
-
-
-       # while gold_c >= 80 :
-       #     if e_build == 1 :
-       #         closest_b = closest_barracks(cmd, site_dict)
-       #         cmd += " "  + str(closest_b)
-       #         gold_c -= 80
-       #     else :
-       #         for site_id in site_dict :
-       #              if site_dict[site_id].owner == 0 and gold_c >= 80 :
-       #                 cmd += " "  + str(site_id)
-       #                 gold_c -= 80
     return cmd
-def closest_barracks(already_training):
+"""def closest_barracks(already_training):
     distance_min = 999999
     for site_id in site_dict :
         if site_dict[site_id].owner == 0 and str(site_id) not in already_training : 
@@ -151,32 +140,24 @@ def closest_barracks(already_training):
                     if distance_min > distance_c :
                         distance_min = distance_c
                         c_barracks = site_id
-    return c_barracks
+    return c_barracks"""
 def detect_ennemy_tower() :
     for site in site_dict :
-        if site_dict[site].owner == 1 and site_dict[site].structure_type == 1: e_t_build = 1
+        if site_dict[site].owner == 1 and site_dict[site].structure_type == 1: e_t_build[site] =+ 1
 
 def choose_building(site):
     cmd = ""
-    if e_t_build == 0 : detect_ennemy_tower()
-    if site_dict[site_id].mine_lvl < 3 and len(mine) < 3 :
+    if len(e_t_build) == 0 : detect_ennemy_tower()
+    if  len(mine) < 3 :
         cmd += "MINE"
-        site_dict[site_id].mine_lvl =+1
         mine[site] =+ 1
     elif barracks == {} :
-        cmd += "BARRACKS-ARCHER"
-        site_dict[site].bar_type = "BARRACKS-ARCHER"
-        barracks[site] = "ARCHER"
-    elif len(barracks) == 1:
         cmd += "BARRACKS-KNIGHT"
-        site_dict[site].bar_type="BARRACKS-KNIGHT"
+        site_dict[site].bar_type = "BARRACKS-KNIGHT"
         barracks[site] = "BARRACKS-KNIGHT"
-    elif len(barracks) == 2 and e_t_build == 1:
-        cmd += "BARRACKS-GIANT"
-        site_dict[site].bar_type = "BARRACKS-GIANT"
-        barracks[site] = "BARRACKS-GIANT"
     else :
             cmd += "TOWER"
+            tower[site] =+ 1
     return cmd
 
 
@@ -202,7 +183,7 @@ while True:
     for i in range(num_units):
         # unit_type: -1 = QUEEN, 0 = KNIGHT, 1 = ARCHER
         x, y, owner, unit_type, health = [int(j) for j in input().split()]
-        if unit_type == -1 :
+        if unit_type == -1 and owner == 0 :
             queen = Queen(x, y, owner, health)
         elif unit_type == 0 :
             count_k = Knight.count_k
@@ -217,9 +198,7 @@ while True:
     
 
     closest_place = search()
-    
-    queen_cmd = queen_move(closest_place, touched_site)
-
+    queen_cmd = queen_move(closest_place)
     training_cmd = training(gold)
 
     print(queen_cmd)
